@@ -1,9 +1,10 @@
 const express = require('express')
-const mongoose = require ('mongoose')
 const cors = require('cors')
+const connectDB = require('./config/db')
 const dotenv = require('dotenv')
 
 dotenv.config()
+connectDB()
 
 const app = express()
 
@@ -15,17 +16,9 @@ app.get('/', (req, res) => {
 })
 
 const PORT = process.env.PORT || 5000
-const MONGO_URI = process.env.MONGO_URI
 
 
-mongoose.connect(MONGO_URI)
-    .then(() => {
-        console.log('MongoDB conectado')
-        app.listen(PORT, () => {
-            console.log(`Servidor corriendo en puerto ${PORT}`)
-        })
-    })
-    .catch((err) => {
-        console.log('Error conectando a MongoDB:', err.message)
-        process.exit(1)
-    })
+
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`)
+})
