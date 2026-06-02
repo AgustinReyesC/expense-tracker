@@ -34,4 +34,8 @@ const expenseSchema = new mongoose.Schema({
     }
 }, {timestamps: true})
 
+expenseSchema.virtual('formattedAmount').get(function() {
+  return `$${this.amount.toFixed(2)}`
+})
+
 module.exports = mongoose.model('Expense', expenseSchema)
