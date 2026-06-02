@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
+    },
+    //para el refresco del token
+    refreshToken: {
+        type: String,
+        default: null
     }
 }, {timestamps: true})
 
@@ -50,6 +55,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.toJSON = function() {
     const user = this.toObject()
     delete user.password
+    delete user.refreshToken
     return user
 }
 
