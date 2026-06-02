@@ -38,4 +38,7 @@ expenseSchema.virtual('formattedAmount').get(function() {
   return `$${this.amount.toFixed(2)}`
 })
 
+expenseSchema.index({ user: 1, date: -1 })
+expenseSchema.index({ user: 1, category: 1 })
+
 module.exports = mongoose.model('Expense', expenseSchema)
