@@ -44,10 +44,30 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password)
 }
 
+
+//protege el hash de la respuesta (nunca sale en el json)
+//sobreescritura de método
 userSchema.methods.toJSON = function() {
     const user = this.toObject()
     delete user.password
     return user
 }
+
+
+
+
+
+
+
+//modelos virtuales
+userSchema.virtual('info').get(function() {
+    return `${this.name} - ${this.role}`
+})
+
+userSchema.index({email: 1, role: 1})
+
+
+
+
 
 module.exports = mongoose.model('User', userSchema)

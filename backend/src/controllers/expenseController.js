@@ -1,22 +1,43 @@
 const Expense = require('../models/Expense')
-const { get } = require('../routes/authRoutes')
 const fs = require ('fs') //para borrar archivos huerfanos
 
+
+//meterle crud 
 const getExpenses = async (req, res, next) => {
     try {
-        const {category, startDate, endDate, page = 1, limit = 10 } = req.query
-        const filter = { user: req.user._id }
+        const {category, startDate, endDate, page = 1, limit = 10, search, sort } = req.query
+        //admin puede ver todo
+        const filter = req.user.role == 'admin' ? {} : { user: req.user._id }
 
         if(category) filter.category = category
+
+        //busca por descripción
+        if(search) filter.description = {$regex: search, $options: 'i'}
+
         if(startDate || endDate) {
             filter.date = {}
             if(startDate) filter.date.$gte = new Date(startDate)
             if(endDate) filter.date.$lte = new Date(endDate) 
         }
 
+
+        //opciones para ordenar la búsqueda
+        const sortOptions = {
+            amount: { amount: -1 },
+            date: { date: -1 },
+            category: {category: 1}
+        }
+        const sortBy = sortOptions[sort] || {date: -1}
+
+
+
+
+
+
+
         const total = await Expense.countDocuments(filter)
         const expenses = await Expense.find(filter)
-        .sort({date: -1 })
+        .sort(sortBy)
         .skip((page - 1) * limit)
         .limit(Number(limit))
         .populate('user', 'name email')
@@ -24,7 +45,7 @@ const getExpenses = async (req, res, next) => {
         res.json( {
             expenses,
             total,
-            age: Number(page),
+            page: Number(page),
             pages: Math.ceil(total / limit)
         })
     } catch(error) {
@@ -32,7 +53,7 @@ const getExpenses = async (req, res, next) => {
     }
 }
 
-const createExpense = async (req, res, body) => {
+const createExpense = async (req, res, next) => {
     try {
         const {amount, category, description, date } = req.body
         const expense = await Expense.create({
@@ -55,7 +76,7 @@ const updateExpense = async (req, res, next) => {
         //el gasto no existe
         if(!expense) return res.status(404).json({message: 'Gasto no encontrado'})
         //el gasto no es del usuario
-        if(expense.user.toString() !== req.user._id.toString()) {
+        if(req.user.role !== 'admin' && expense.user.toString() !== req.user._id.toString()) {
             return res.status(403).json({message: 'Sin autorización'})
         }
         const {amount, category, description, date } = req.body
@@ -75,7 +96,7 @@ const deleteExpense = async (req, res, next) => {
     try {
         const expense = await Expense.findById(req.params.id)
         if(!expense) return res.status(404).json({message: 'Gasto no encontrado'})
-        if(expense.user.toString() !== req.user._id.toString()) {
+        if(req.user.role !== 'admin' && expense.user.toString() !== req.user._id.toString()) {
             return res.status(403).json({message: 'Sin autorización'})
         }
 

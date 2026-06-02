@@ -3,6 +3,8 @@ const cors = require('cors')
 const connectDB = require('./config/db')
 const dotenv = require('dotenv')
 const authRoutes = require('./routes/authRoutes')
+const expenseRoutes = require('./routes/expenseRoutes')
+const errorHandler = require('./middlewares/errorHandler')
 
 dotenv.config()
 connectDB()
@@ -12,7 +14,10 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+app.use('/uploads', express.static('uploads'))
 app.use('/api/auth', authRoutes)
+app.use('/api/expenses', expenseRoutes)
+app.use(errorHandler)
 
 app.get('/', (req, res) => {
     res.json({message: 'API funcionando'})
