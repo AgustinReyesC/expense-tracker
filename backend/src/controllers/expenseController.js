@@ -1,5 +1,6 @@
 const Expense = require('../models/Expense')
 const fs = require ('fs') //para borrar archivos huerfanos
+const cloudinary = require('../config/cloudinary') //para cloudinary 
 
 
 //meterle crud 
@@ -101,10 +102,16 @@ const deleteExpense = async (req, res, next) => {
         }
 
         //borrar archivo
+        // if(expense.receipt) {
+        //     fs.unlink(expense.receipt, (err) => {
+        //         if(err) console.error('Error al borrar archivo:', err)
+        //     })
+        // }
+
+        //borrar archivo cloudinary
         if(expense.receipt) {
-            fs.unlink(expense.receipt, (err) => {
-                if(err) console.error('Error al borrar archivo:', err)
-            })
+            const publicId = expense.receipt.split('/').slice(-1)[0].split('.')[0]
+            await cloudinary.uploader.destroy(`expense-tracker/${publicId}`)
         }
 
         await expense.deleteOne()
