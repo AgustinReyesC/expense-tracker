@@ -24,5 +24,14 @@ services:
     depends_on:
       - mongo
 
+  frontend:
+    build: ./frontend/react
+    container_name: expense_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
 volumes:
   mongo_data:
