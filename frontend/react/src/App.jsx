@@ -1,5 +1,5 @@
-import { useState, useContext, createContext, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom'
+import { useState, useContext, createContext, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 
 const API_URL = 'http://193.122.171.45:5001/api'
@@ -35,6 +35,8 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+///─── AuthContext ───────────────────────────────────────────────────────────────
 
 const AuthContext = createContext(null)
 
@@ -72,13 +74,42 @@ export function AuthProvider({ children }) {
 
 const useAuth = () => useContext(AuthContext)
 
+///─── ProtectedRoute — guarda location para redirigir después del login ────────
+
 function ProtectedRoute({ children }) {
   const { user, ready } = useAuth()
+  const location = useLocation()
   if (!ready) return null
-  return user ? children : <Navigate to="/login" replace />
+  return user ? children : <Navigate to="/login" state={{ from: location }} replace />
 }
 
-function TextFieldTexto({ id, label, type = 'text', value, onChange, placeholder }) {
+///─── Skeleton para estado de carga ────────────────────────────────────────────
+
+function SkeletonCard() {
+  const base = {
+    background: 'var(--border)',
+    borderRadius: 2,
+    animation: 'pulse 1.4s ease-in-out infinite',
+  }
+  return (
+    <div style={{ ...styles.card, display: 'flex', gap: 16 }}>
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ ...base, height: 14, width: '55%' }} />
+        <div style={{ ...base, height: 12, width: '30%' }} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <div style={{ ...base, height: 26, width: 60 }} />
+          <div style={{ ...base, height: 26, width: 60 }} />
+        </div>
+      </div>
+      <div style={{ ...base, height: 22, width: 70, alignSelf: 'flex-start' }} />
+    </div>
+  )
+}
+
+///─── Componentes reutilizables ─────────────────────────────────────────────────
+
+function TextFieldTexto({ id, label, type = 'text', value, onChange, placeholder, error }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <label htmlFor={id} style={styles.label}>{label}</label>
@@ -88,13 +119,14 @@ function TextFieldTexto({ id, label, type = 'text', value, onChange, placeholder
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        style={styles.input}
+        style={{ ...styles.input, ...(error ? styles.inputError : {}) }}
       />
+      {error && <div style={styles.fieldError}>{error}</div>}
     </div>
   )
 }
 
-function TextFieldContra({ id, label, value, onChange, placeholder }) {
+function TextFieldContra({ id, label, value, onChange, placeholder, error }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <label htmlFor={id} style={styles.label}>{label}</label>
@@ -104,8 +136,9 @@ function TextFieldContra({ id, label, value, onChange, placeholder }) {
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        style={styles.input}
+        style={{ ...styles.input, ...(error ? styles.inputError : {}) }}
       />
+      {error && <div style={styles.fieldError}>{error}</div>}
     </div>
   )
 }
@@ -127,7 +160,7 @@ function CardGasto({ gasto, onEdit, onDelete }) {
         </div>
         <div style={{ fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={styles.badge}>{gasto.category}</span>
-          {gasto.receipt && <span>📎 {gasto.receipt}</span>}
+          {gasto.receipt && <a href={gasto.receipt.replace('/upload/', '/upload/fl_attachment/')} target="_blank">📎 ver comprobante</a>}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <button onClick={() => onEdit(gasto)} style={{ ...styles.btnSm, ...styles.btnOutline }}>
@@ -145,50 +178,92 @@ function CardGasto({ gasto, onEdit, onDelete }) {
   )
 }
 
+///─── DropZone con validación de tipo y tamaño ─────────────────────────────────
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+const MAX_SIZE_MB = 5
+
 function DropZone({ file, onChange }) {
   const [over, setOver] = useState(false)
+  const [fileError, setFileError] = useState('')
+
+  const validate = (f) => {
+    if (!ALLOWED_TYPES.includes(f.type)) {
+      setFileError('solo se permiten imágenes (jpg, png, webp) o PDF')
+      return false
+    }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      setFileError(`el archivo no puede superar ${MAX_SIZE_MB}MB`)
+      return false
+    }
+    setFileError('')
+    return true
+  }
 
   const handleDrop = (e) => {
     e.preventDefault()
     setOver(false)
     const f = e.dataTransfer.files[0]
-    if (f) onChange(f)
+    if (f && validate(f)) onChange(f)
   }
 
+  const handleSelect = (e) => {
+    const f = e.target.files[0]
+    if (f && validate(f)) onChange(f)
+  }
+
+  ///vista previa si el archivo es imagen
+  const preview = file instanceof File && file.type.startsWith('image/')
+    ? URL.createObjectURL(file)
+    : null
+
   return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setOver(true) }}
-      onDragLeave={() => setOver(false)}
-      onDrop={handleDrop}
-      onClick={() => document.getElementById('file-input').click()}
-      style={{
-        border: `1.5px dashed ${over ? 'var(--accent)' : 'var(--border)'}`,
-        background: over ? 'var(--accent-bg)' : 'var(--bg)',
-        padding: '20px',
-        textAlign: 'center',
-        cursor: 'pointer',
-        fontSize: 13,
-        color: 'var(--text)',
-        transition: 'border-color .15s',
-      }}
-    >
-      <div style={{ fontSize: 24, marginBottom: 6 }}>⬆</div>
-      <div>arrastra un archivo o haz clic para seleccionar</div>
-      {file && (
-        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
-          {file.name ?? file}
-        </div>
+    <div>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+        onDragLeave={() => setOver(false)}
+        onDrop={handleDrop}
+        onClick={() => document.getElementById('file-input').click()}
+        style={{
+          border: `1.5px dashed ${over ? 'var(--accent)' : 'var(--border)'}`,
+          background: over ? 'var(--accent-bg)' : 'var(--bg)',
+          padding: '20px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          fontSize: 13,
+          color: 'var(--text)',
+          transition: 'border-color .15s',
+        }}
+      >
+        <div style={{ fontSize: 24, marginBottom: 6 }}>⬆</div>
+        <div>arrastra un archivo o haz clic para seleccionar</div>
+        <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>jpg, png, webp, pdf — máx {MAX_SIZE_MB}MB</div>
+        {file && !preview && (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
+            📎 {file.name ?? file}
+          </div>
+        )}
+        <input
+          id="file-input"
+          type="file"
+          style={{ display: 'none' }}
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          onChange={handleSelect}
+        />
+      </div>
+      {preview && (
+        <img
+          src={preview}
+          alt="vista previa"
+          style={{ marginTop: 8, maxHeight: 120, maxWidth: '100%', objectFit: 'contain', border: '1px solid var(--border)' }}
+        />
       )}
-      <input
-        id="file-input"
-        type="file"
-        style={{ display: 'none' }}
-        accept="image/*,.pdf"
-        onChange={(e) => onChange(e.target.files[0])}
-      />
+      {fileError && <div style={styles.fieldError}>{fileError}</div>}
     </div>
   )
 }
+
+///─── Modal de gasto con errores por campo ──────────────────────────────────────
 
 function GastoModal({ gasto, onClose, onSave }) {
   const [description, setDescription] = useState(gasto?.description ?? '')
@@ -196,12 +271,21 @@ function GastoModal({ gasto, onClose, onSave }) {
   const [category, setCategory]       = useState(gasto?.category ?? 'Comida')
   const [file, setFile]               = useState(gasto?.receipt ?? null)
   const [error, setError]             = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [loading, setLoading]         = useState(false)
 
   const CATEGORIES = ['Comida', 'Transporte', 'Entretenimiento', 'Salud', 'Hogar', 'Otro']
 
+  const validate = () => {
+    const errs = {}
+    if (!description.trim()) errs.description = 'el concepto es obligatorio'
+    if (!amount || Number(amount) <= 0) errs.amount = 'ingresa un monto válido'
+    setFieldErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
   const handleSave = async () => {
-    if (!description || !amount) { setError('completa todos los campos'); return }
+    if (!validate()) return
     setLoading(true)
     setError('')
     try {
@@ -239,12 +323,14 @@ function GastoModal({ gasto, onClose, onSave }) {
         <TextFieldTexto
           id="m-desc" label="concepto" value={description}
           onChange={(e) => setDescription(e.target.value)} placeholder="ej. gasolina"
+          error={fieldErrors.description}
         />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <TextFieldTexto
             id="m-amount" label="monto" type="number" value={amount}
             onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+            error={fieldErrors.amount}
           />
           <div style={{ marginBottom: 16 }}>
             <label htmlFor="m-cat" style={styles.label}>categoría</label>
@@ -272,9 +358,13 @@ function GastoModal({ gasto, onClose, onSave }) {
   )
 }
 
+///─── Login — redirige a la página original después de autenticar ───────────────
+
 function Login() {
   const { login } = useAuth()
   const navigate  = useNavigate()
+  const location  = useLocation()
+  const from      = location.state?.from?.pathname ?? '/home'
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -287,7 +377,7 @@ function Login() {
     try {
       const { data } = await api.post('/auth/login', { email, password })
       login(data.accessToken, data.refreshToken, data.user)
-      navigate('/home')
+      navigate(from, { replace: true })
     } catch (e) {
       setError(e.response?.data?.message ?? 'Credenciales inválidas')
     } finally {
@@ -327,12 +417,21 @@ function Register() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm]   = useState('')
   const [error, setError]       = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [loading, setLoading]   = useState(false)
 
+  const validate = () => {
+    const errs = {}
+    if (!name.trim()) errs.name = 'el nombre es obligatorio'
+    if (!email.trim()) errs.email = 'el correo es obligatorio'
+    if (password.length < 8) errs.password = 'mínimo 8 caracteres'
+    if (password !== confirm) errs.confirm = 'las contraseñas no coinciden'
+    setFieldErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirm) { setError('completa todos los campos'); return }
-    if (password !== confirm) { setError('las contraseñas no coinciden'); return }
-    if (password.length < 8) { setError('la contraseña debe tener al menos 8 caracteres'); return }
+    if (!validate()) return
     setLoading(true); setError('')
     try {
       const { data } = await api.post('/auth/register', { name, email, password })
@@ -353,13 +452,13 @@ function Register() {
       {error && <div style={styles.error}>{error}</div>}
 
       <TextFieldTexto id="r-name" label="nombre" value={name}
-        onChange={(e) => setName(e.target.value)} placeholder="tu nombre" />
+        onChange={(e) => setName(e.target.value)} placeholder="tu nombre" error={fieldErrors.name} />
       <TextFieldTexto id="r-email" label="correo" type="email" value={email}
-        onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
+        onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.com" error={fieldErrors.email} />
       <TextFieldContra id="r-pass" label="contraseña" value={password}
-        onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 8 caracteres" />
+        onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 8 caracteres" error={fieldErrors.password} />
       <TextFieldContra id="r-pass2" label="confirmar contraseña" value={confirm}
-        onChange={(e) => setConfirm(e.target.value)} placeholder="repite tu contraseña" />
+        onChange={(e) => setConfirm(e.target.value)} placeholder="repite tu contraseña" error={fieldErrors.confirm} />
 
       <button onClick={handleRegister} disabled={loading} style={{ ...styles.btn, opacity: loading ? .6 : 1 }}>
         {loading ? 'creando cuenta...' : 'crear cuenta'}
@@ -371,6 +470,8 @@ function Register() {
     </div>
   )
 }
+
+///─── Home con skeletons, empty state y botón reintentar ───────────────────────
 
 function Home() {
   const { user, logout } = useAuth()
@@ -427,9 +528,40 @@ function Home() {
     navigate('/login')
   }
 
+  const renderContent = () => {
+    if (loading) {
+      ///skeletons mientras carga
+      return [1, 2, 3].map(i => <SkeletonCard key={i} />)
+    }
+    if (error) {
+      return (
+        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+          <div style={{ ...styles.error, display: 'inline-block', marginBottom: 12 }}>{error}</div>
+          <br />
+          <button onClick={fetchGastos} style={{ ...styles.btn, width: 'auto', padding: '8px 20px' }}>
+            reintentar
+          </button>
+        </div>
+      )
+    }
+    if (gastos.length === 0) {
+      ///empty state
+      return (
+        <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--text)' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-h)', marginBottom: 6 }}>sin gastos aún</div>
+          <div style={{ fontSize: 13 }}>agrega tu primer gasto con el botón de arriba</div>
+        </div>
+      )
+    }
+    return gastos.map(g => (
+      <CardGasto key={g._id} gasto={g} onEdit={handleEdit} onDelete={handleDelete} />
+    ))
+  }
+
   return (
-    <div style={{ ...styles.page, maxWidth: 700 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ ...styles.page, maxWidth: 1200 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={styles.h1}>mis gastos</h1>
           <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>
@@ -446,21 +578,7 @@ function Home() {
         </div>
       </div>
 
-      {error && <div style={styles.error}>{error}</div>}
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text)', fontSize: 14 }}>
-          cargando gastos...
-        </div>
-      ) : gastos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text)', fontSize: 14 }}>
-          sin gastos, agrega uno con el botón de arriba
-        </div>
-      ) : (
-        gastos.map(g => (
-          <CardGasto key={g._id} gasto={g} onEdit={handleEdit} onDelete={handleDelete} />
-        ))
-      )}
+      {renderContent()}
 
       {modal && (
         <GastoModal
@@ -485,6 +603,8 @@ const styles = {
     color: 'var(--text-h)',
     letterSpacing: '-0.5px',
     marginBottom: 4,
+     marginLeft: 16,
+    marginRight: 16,
   },
   subtitle: {
     color: 'var(--text)',
@@ -508,6 +628,14 @@ const styles = {
     outline: 'none',
     borderRadius: 0,
     boxSizing: 'border-box',
+  },
+  inputError: {
+    borderColor: '#e24b4a',
+  },
+  fieldError: {
+    fontSize: 12,
+    color: '#a32d2d',
+    marginTop: 4,
   },
   btn: {
     width: '100%',
