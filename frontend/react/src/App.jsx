@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react
 import axios from 'axios'
 
 //Config
-const API_URL = 'http://localhost:5001/api'
+const API_URL = 'http://193.122.171.45:5001/api'
 
 //Axios instance 
 const api = axios.create({ baseURL: API_URL })
@@ -321,7 +321,7 @@ function Register() {
     try {
       const { data } = await api.post('/auth/register', { name, email, password })
       login(data.token, data.user)
-      navigate('/home')
+      navigate('/login')
     } catch (e) {
       setError(e.response?.data?.message ?? 'Error al registrar')
     } finally {

@@ -1,15 +1,10 @@
 const User = require('../models/User')
 const jwt = require('jsonwebtoken')
 
-<<<<<<< HEAD
-const generatetoken = (id) => {
-    return jwt.sign({id}, process.env.JWT_SECRET, { expiresIn: '7d' })
-=======
 const generateTokens = (id) => {
     const accessToken = jwt.sign({id}, process.env.JWT_SECRET, {expiresIn: '15m'})
     const refreshToken = jwt.sign({id}, process.env.JWT_REFRESH_SECRET, {expiresIn: '30d'})
     return { accessToken, refreshToken }
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
 }
 
 
@@ -23,18 +18,11 @@ const register = async (req, res, next) => {
         }
 
         const user = await User.create({name, email, password})
-<<<<<<< HEAD
-        res.status(201).json({
-            token: generatetoken(user._id),
-            user
-        })
-=======
         const { accessToken, refreshToken } = generateTokens(user._id)
         
         user.refreshToken = refreshToken
         await user.save()
         res.status(201).json({accessToken, refreshToken, user})
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
     } catch (error) {
         next(error)
     }
@@ -48,17 +36,10 @@ const login = async (req, res, next) => {
             return res.status(401).json({message: 'Credenciales inválidas'})
         }
 
-<<<<<<< HEAD
-        res.json({
-            token: generatetoken(user._id),
-            user
-        }) 
-=======
         const {accessToken, refreshToken} = generateTokens(user._id)
         user.refreshToken = refreshToken
         await(user.save())
         res.json({accessToken, refreshToken, user})
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
     } catch (error) {
         next(error)
     }
@@ -73,9 +54,6 @@ const findMe = async (req, res, next) => {
     }
 }
 
-<<<<<<< HEAD
-module.exports = { register, login, findMe }
-=======
 
 
 
@@ -115,4 +93,3 @@ const logout = async (req, res, next) => {
 }
 
 module.exports = { register, login, findMe, refresh, logout }
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0

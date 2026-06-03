@@ -19,16 +19,8 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-<<<<<<< HEAD
-    environment:
-      - NODE_ENV=development
-      - PORT=5000
-      - MONGO_URI=mongodb://mongo:27017/expense_tracker
-      - JWT_SECRET= mongodb_secret_011005
-=======
     env_file:
       - ./backend/.env
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
     depends_on:
       - mongo
 

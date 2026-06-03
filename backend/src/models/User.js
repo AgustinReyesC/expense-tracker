@@ -27,14 +27,11 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
-<<<<<<< HEAD
-=======
     },
     //para el refresco del token
     refreshToken: {
         type: String,
         default: null
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
     }
 }, {timestamps: true})
 
@@ -52,14 +49,6 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password)
 }
 
-<<<<<<< HEAD
-userSchema.methods.toJSON = function() {
-    const user = this.toObject()
-    delete user.password
-    return user
-}
-
-=======
 
 //protege el hash de la respuesta (nunca sale en el json)
 //sobreescritura de método
@@ -87,5 +76,4 @@ userSchema.index({email: 1, role: 1})
 
 
 
->>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
 module.exports = mongoose.model('User', userSchema)
