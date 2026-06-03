@@ -180,7 +180,9 @@ function GastoModal({ gasto, onClose, onSave }) {
   const [error, setError]             = useState('')
   const [loading, setLoading]         = useState(false)
 
-  const CATEGORIES = ['Comida', 'Transporte', 'Entretenimiento', 'Salud', 'Hogar', 'Otro']
+  //const CATEGORIES = ['Comida', 'Transporte', 'Entretenimiento', 'Salud', 'Hogar', 'Otro']
+  //LE METISTE CATEGORÍAS QUE EL BACKEND NO TIENE
+  const CATEGORIES = ['Comida', 'Transporte', 'Entretenimiento', 'Salud', 'Otros']
 
   const handleSave = async () => {
     if (!description || !amount) { setError('completa todos los campos'); return }
@@ -270,7 +272,9 @@ function Login() {
     setLoading(true); setError('')
     try {
       const { data } = await api.post('/auth/login', { email, password })
-      login(data.token, data.user)
+      //login(data.token, data.user)
+      //cambio para ver si funciona
+      login(data.accessToken, data.user)
       navigate('/home')
     } catch (e) {
       setError(e.response?.data?.message ?? 'Credenciales inválidas')
@@ -320,7 +324,9 @@ function Register() {
     setLoading(true); setError('')
     try {
       const { data } = await api.post('/auth/register', { name, email, password })
-      login(data.token, data.user)
+      //login(data.token, data.user)
+      //lo mismo que arriba
+      login(data.accessToken, data.user)
       navigate('/login')
     } catch (e) {
       setError(e.response?.data?.message ?? 'Error al registrar')
@@ -374,7 +380,7 @@ function Home() {
     setLoading(true); setError('')
     try {
       const { data } = await api.get('/expenses')
-      setGastos(data)
+      setGastos(data.expenses)
     } catch (e) {
       setError('Error al cargar los gastos')
     } finally {
