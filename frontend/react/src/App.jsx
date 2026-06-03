@@ -2,10 +2,8 @@ import { useState, useContext, createContext, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
-//Config
 const API_URL = 'http://193.122.171.45:5001/api'
 
-//Axios instance 
 const api = axios.create({ baseURL: API_URL })
 
 api.interceptors.request.use((config) => {
@@ -14,7 +12,30 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-//AuthContext
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true
+      try {
+        const refreshToken = localStorage.getItem('refreshToken')
+        const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken })
+        localStorage.setItem('token', data.accessToken)
+        localStorage.setItem('refreshToken', data.refreshToken)
+        original.headers.Authorization = `Bearer ${data.accessToken}`
+        return api(original)
+      } catch {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -28,14 +49,16 @@ export function AuthProvider({ children }) {
     setReady(true)
   }, [])
 
-  const login = (token, userData) => {
-    localStorage.setItem('token', token)
+  const login = (accessToken, refreshToken, userData) => {
+    localStorage.setItem('token', accessToken)
+    localStorage.setItem('refreshToken', refreshToken)
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
   }
 
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     setUser(null)
   }
@@ -49,14 +72,11 @@ export function AuthProvider({ children }) {
 
 const useAuth = () => useContext(AuthContext)
 
-//ProtectedRoute
 function ProtectedRoute({ children }) {
   const { user, ready } = useAuth()
   if (!ready) return null
   return user ? children : <Navigate to="/login" replace />
 }
-
-//Components
 
 function TextFieldTexto({ id, label, type = 'text', value, onChange, placeholder }) {
   return (
@@ -125,7 +145,6 @@ function CardGasto({ gasto, onEdit, onDelete }) {
   )
 }
 
-//DropZone
 function DropZone({ file, onChange }) {
   const [over, setOver] = useState(false)
 
@@ -171,7 +190,6 @@ function DropZone({ file, onChange }) {
   )
 }
 
-//GastoModal
 function GastoModal({ gasto, onClose, onSave }) {
   const [description, setDescription] = useState(gasto?.description ?? '')
   const [amount, setAmount]           = useState(gasto?.amount ?? '')
@@ -254,23 +272,21 @@ function GastoModal({ gasto, onClose, onSave }) {
   )
 }
 
-//Pages
-
 function Login() {
   const { login } = useAuth()
   const navigate  = useNavigate()
 
-  const [email, setEmail]     = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
 
   const handleLogin = async () => {
     if (!email || !password) { setError('completa todos los campos'); return }
     setLoading(true); setError('')
     try {
       const { data } = await api.post('/auth/login', { email, password })
-      login(data.token, data.user)
+      login(data.accessToken, data.refreshToken, data.user)
       navigate('/home')
     } catch (e) {
       setError(e.response?.data?.message ?? 'Credenciales inválidas')
@@ -306,12 +322,12 @@ function Register() {
   const { login } = useAuth()
   const navigate  = useNavigate()
 
-  const [name, setName]       = useState('')
-  const [email, setEmail]     = useState('')
+  const [name, setName]         = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [confirm, setConfirm]   = useState('')
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirm) { setError('completa todos los campos'); return }
@@ -320,8 +336,8 @@ function Register() {
     setLoading(true); setError('')
     try {
       const { data } = await api.post('/auth/register', { name, email, password })
-      login(data.token, data.user)
-      navigate('/login')
+      login(data.accessToken, data.refreshToken, data.user)
+      navigate('/home')
     } catch (e) {
       setError(e.response?.data?.message ?? 'Error al registrar')
     } finally {
@@ -374,7 +390,7 @@ function Home() {
     setLoading(true); setError('')
     try {
       const { data } = await api.get('/expenses')
-      setGastos(data)
+      setGastos(data.expenses)
     } catch (e) {
       setError('Error al cargar los gastos')
     } finally {
@@ -457,7 +473,6 @@ function Home() {
   )
 }
 
-//Styles
 const styles = {
   page: {
     maxWidth: 480,
@@ -562,7 +577,6 @@ const styles = {
   },
 }
 
-//App
 export default function App() {
   return (
     <AuthProvider>
