@@ -2,10 +2,10 @@ import { useState, useContext, createContext, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
-// ─── Config ────────────────────────────────────────────────────────────────
-const API_URL = 'http://localhost:5000/api'
+//Config
+const API_URL = 'http://localhost:5001/api'
 
-// ─── Axios instance ─────────────────────────────────────────────────────────
+//Axios instance 
 const api = axios.create({ baseURL: API_URL })
 
 api.interceptors.request.use((config) => {
@@ -14,7 +14,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ─── AuthContext ─────────────────────────────────────────────────────────────
+//AuthContext
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -49,14 +49,14 @@ export function AuthProvider({ children }) {
 
 const useAuth = () => useContext(AuthContext)
 
-// ─── ProtectedRoute ──────────────────────────────────────────────────────────
+//ProtectedRoute
 function ProtectedRoute({ children }) {
   const { user, ready } = useAuth()
   if (!ready) return null
   return user ? children : <Navigate to="/login" replace />
 }
 
-// ─── Components ──────────────────────────────────────────────────────────────
+//Components
 
 function TextFieldTexto({ id, label, type = 'text', value, onChange, placeholder }) {
   return (
@@ -125,7 +125,7 @@ function CardGasto({ gasto, onEdit, onDelete }) {
   )
 }
 
-// ─── DropZone ────────────────────────────────────────────────────────────────
+//DropZone
 function DropZone({ file, onChange }) {
   const [over, setOver] = useState(false)
 
@@ -171,7 +171,7 @@ function DropZone({ file, onChange }) {
   )
 }
 
-// ─── GastoModal ──────────────────────────────────────────────────────────────
+//GastoModal
 function GastoModal({ gasto, onClose, onSave }) {
   const [description, setDescription] = useState(gasto?.description ?? '')
   const [amount, setAmount]           = useState(gasto?.amount ?? '')
@@ -254,7 +254,7 @@ function GastoModal({ gasto, onClose, onSave }) {
   )
 }
 
-// ─── Pages ───────────────────────────────────────────────────────────────────
+//Pages
 
 function Login() {
   const { login } = useAuth()
@@ -457,7 +457,7 @@ function Home() {
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+//Styles
 const styles = {
   page: {
     maxWidth: 480,
