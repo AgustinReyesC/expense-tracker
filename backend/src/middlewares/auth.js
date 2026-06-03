@@ -19,4 +19,16 @@ const protect = async (req, res, next) => {
     }
 }
 
+<<<<<<< HEAD
 module.exports = { protect }
+=======
+const isAdmin = (req, res, next) => {
+    if(req.usser && req.user.role === 'admin') {
+        next()
+    } else {
+        res.status(403).json({mensaje: 'Acceso solo para administradores'})
+    }
+}
+
+module.exports = { protect, isAdmin}
+>>>>>>> f36fdb24910160c4916a78643c9e0a03db8f21d0
