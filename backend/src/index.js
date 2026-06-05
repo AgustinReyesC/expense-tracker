@@ -11,7 +11,12 @@ connectDB()
 
 const app = express()
 
-app.use(cors())
+//app.use(cors())
+//NAVEGADORES
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://193.122.171.45:3000'],
+  credentials: true
+}))
 app.use(express.json())
 
 //app.use('/uploads', express.static('uploads'))
